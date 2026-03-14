@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pothole-dashboard
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn pothole_system.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"

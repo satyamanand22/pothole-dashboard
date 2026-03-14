@@ -1,0 +1,8 @@
+.env
+credentials.json
+db.sqlite3
+__pycache__/
+*.exe
+*.log
+staticfiles/
+*.zip

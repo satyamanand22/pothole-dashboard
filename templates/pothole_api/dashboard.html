@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PotholeTrack — Live Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:       #0a0d14;
+      --bg-card:       #111827;
+      --bg-card-hover: #1a2235;
+      --border:        rgba(99, 179, 237, 0.12);
+      --accent-blue:   #3b82f6;
+      --accent-cyan:   #06b6d4;
+      --accent-orange: #f97316;
+      --accent-red:    #ef4444;
+      --accent-green:  #22c55e;
+      --text-primary:  #f0f6ff;
+      --text-muted:    #8b9ab5;
+      --glow-blue:     0 0 24px rgba(59, 130, 246, 0.35);
+      --radius:        14px;
+      --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.25rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-brand svg { flex-shrink: 0; }
+    .nav-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.06em;
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.3); }
+      50%       { box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+    }
+
+    /* ── Main Layout ──────────────────────────────────────────── */
+    main { max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Page Header ──────────────────────────────────────────── */
+    .page-header {
+      margin-bottom: 2rem;
+    }
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+    .page-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* ── Stat Cards ───────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .stat-card.blue::before  { background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); }
+    .stat-card.orange::before { background: linear-gradient(90deg, var(--accent-orange), #fbbf24); }
+    .stat-card.red::before   { background: linear-gradient(90deg, var(--accent-red), #f97316); }
+    .stat-card.green::before { background: linear-gradient(90deg, var(--accent-green), #86efac); }
+    .stat-card:hover { background: var(--bg-card-hover); transform: translateY(-2px); box-shadow: var(--glow-blue); }
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .stat-card.blue  .stat-value { color: var(--accent-blue); }
+    .stat-card.orange .stat-value { color: var(--accent-orange); }
+    .stat-card.red   .stat-value { color: var(--accent-red); }
+    .stat-card.green .stat-value { color: var(--accent-green); }
+    .stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── Content Grid ─────────────────────────────────────────── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Panel ────────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .panel-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Map ──────────────────────────────────────────────────── */
+    #map {
+      width: 100%;
+      height: 480px;
+    }
+
+    /* ── Filter sidebar ───────────────────────────────────────── */
+    .filter-panel { display: flex; flex-direction: column; }
+    .filter-body {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      flex: 1;
+    }
+    .filter-row label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.5rem;
+    }
+    .filter-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+    }
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+    .threshold-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+    }
+    .threshold-badge span { color: var(--text-primary); font-size: 1rem; font-weight: 700; }
+
+    .filter-stats {
+      background: rgba(6,182,212,0.06);
+      border: 1px solid rgba(6,182,212,0.15);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .filter-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .filter-stat:last-child { border-bottom: none; }
+    .filter-stat .val { font-weight: 700; color: var(--accent-cyan); }
+
+    /* ── Table ────────────────────────────────────────────────── */
+    .table-container { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead tr {
+      background: rgba(59,130,246,0.08);
+    }
+    th {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+    }
+    th:hover { color: var(--text-primary); }
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr {
+      transition: background var(--transition);
+      cursor: pointer;
+    }
+    tbody tr:hover { background: var(--bg-card-hover); }
+    tbody tr.hidden-row { display: none; }
+    .vibration-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .vib-high   { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .vib-medium { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .vib-low    { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .device-pill {
+      background: rgba(59,130,246,0.12);
+      color: var(--accent-blue);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-weight: 600;
+      font-size: 0.78rem;
+      font-family: 'Courier New', monospace;
+    }
+    tfoot td {
+      padding: 0.75rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+    }
+    .empty-state svg { opacity: 0.3; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+
+    /* ── Scrollbar ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: #2d3a52; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3d4f6e; }
+
+    /* ── Fade-in animation ────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.5s ease both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#3b82f6"/>
+          <stop offset="100%" stop-color="#06b6d4"/>
+        </linearGradient>
+      </defs>
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
+    </svg>
+    PotholeTrack
+  </div>
+  <div class="nav-tag">● LIVE</div>
+</nav>
+
+<!-- ── Main ────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Header -->
+  <div class="page-header fade-up">
+    <h1>Pothole Detection Dashboard</h1>
+    <p>Real-time pothole data collected from ESP32 IoT devices • Stored in Google Sheets</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card blue fade-up delay-1">
+      <div class="stat-label">Total Detections</div>
+      <div class="stat-value" id="stat-total">{{ total }}</div>
+      <div class="stat-sub">All-time pothole events</div>
+    </div>
+    <div class="stat-card red fade-up delay-3">
+      <div class="stat-label">Peak Vibration</div>
+      <div class="stat-value" id="stat-vib">{{ max_vibration }}</div>
+      <div class="stat-sub">Highest recorded value</div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="content-grid fade-up delay-2">
+
+    <!-- Map Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot"></span> Live Map
+        </div>
+        <span style="font-size:0.78rem;color:var(--text-muted);" id="map-count">{{ total }} markers</span>
+      </div>
+      <div id="map"></div>
+    </div>
+
+  </div>
+
+  <!-- Table -->
+  <div class="panel fade-up delay-3">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="dot" style="background:var(--accent-orange);box-shadow:0 0 8px var(--accent-orange);"></span>
+        Detection Records
+      </div>
+      <span style="font-size:0.78rem;color:var(--text-muted);">Click any row to fly to its map marker</span>
+    </div>
+
+    {% if potholes %}
+    <div class="table-container">
+      <table id="pothole-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)"># &nbsp;▾</th>
+            <th onclick="sortTable(1)">Device ID</th>
+            <th onclick="sortTable(2)">Latitude</th>
+            <th onclick="sortTable(3)">Longitude</th>
+            <th onclick="sortTable(4)">Vibration</th>
+            <th onclick="sortTable(5)">Exact Location</th>
+            <th onclick="sortTable(6)">Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in potholes %}
+          <tr
+            data-vibration="{{ p.vibration }}"
+            data-lat="{{ p.latitude }}"
+            data-lng="{{ p.longitude }}"
+            onclick="flyToMarker({{ forloop.counter0 }})"
+          >
+            <td style="color:var(--text-muted)">{{ forloop.counter }}</td>
+            <td><span class="device-pill">{{ p.device_id }}</span></td>
+            <td>{{ p.latitude }}</td>
+            <td>{{ p.longitude }}</td>
+            <td>
+              {% if p.vibration >= 600 %}
+                <span class="vibration-chip vib-high">{{ p.vibration }}</span>
+              {% elif p.vibration >= 300 %}
+                <span class="vibration-chip vib-medium">{{ p.vibration }}</span>
+              {% else %}
+                <span class="vibration-chip vib-low">{{ p.vibration }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="https://www.google.com/maps/search/?api=1&query={{ p.latitude }},{{ p.longitude }}" 
+                 target="_blank" 
+                 class="device-pill" 
+                 style="text-decoration:none; background:rgba(6,182,212,0.1); color:var(--accent-cyan); display:inline-flex; align-items:center; gap:4px;"
+                 onclick="event.stopPropagation();">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                View Map
+              </a>
+            </td>
+            <td style="color:var(--text-muted)">{{ p.timestamp }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7" id="table-footer">Showing all {{ total }} records</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <h3>No pothole records yet</h3>
+      <p>Send data from your ESP32 device to <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;">/api/pothole-data/</code></p>
+    </div>
+    {% endif %}
+  </div>
+
+</main>
+
+<!-- ── Google Maps ───────────────────────────────────────────────── -->
+<script>
+  // ── Pothole data injected from Django ──────────────────────────
+  const POTHOLES = [
+    {% for p in potholes %}
+    {
+      device_id:  "{{ p.device_id|escapejs }}",
+      lat:        {{ p.latitude }},
+      lng:        {{ p.longitude }},
+      speed:      {{ p.speed }},
+      vibration:  {{ p.vibration }},
+      timestamp:  "{{ p.timestamp|escapejs }}",
+    },
+    {% endfor %}
+  ];
+
+  let map, markers = [], infoWindows = [], currentThreshold = {{ vibration_threshold }};
+  let geocoder;
+
+  function initMap() {
+    geocoder = new google.maps.Geocoder();
+    // Default centre: India / first pothole location
+    const centre = POTHOLES.length
+      ? { lat: POTHOLES[0].lat, lng: POTHOLES[0].lng }
+      : { lat: 20.5937, lng: 78.9629 };
+
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: centre,
+      zoom: POTHOLES.length ? 13 : 5,
+      mapTypeId: "roadmap",
+      styles: [
+        { elementType: "geometry",        stylers: [{ color: "#1a2235" }] },
+        { elementType: "labels.text.fill",stylers: [{ color: "#8b9ab5" }] },
+        { elementType: "labels.text.stroke",stylers:[{ color: "#0a0d14" }] },
+        { featureType: "road",              elementType: "geometry",       stylers: [{ color: "#2d3a52" }] },
+        { featureType: "road",              elementType: "geometry.stroke",stylers: [{ color: "#0a0d14" }] },
+        { featureType: "water",             elementType: "geometry",       stylers: [{ color: "#0a1628" }] },
+        { featureType: "poi",               elementType: "geometry",       stylers: [{ color: "#152030" }] },
+        { featureType: "poi.park",          elementType: "geometry",       stylers: [{ color: "#112010" }] },
+        { featureType: "transit",           stylers: [{ visibility: "off" }] },
+      ],
+      disableDefaultUI: false,
+      zoomControl: true,
+      mapTypeControl: false,
+      streetViewControl: false,
+    });
+
+    // Build markers
+    POTHOLES.forEach(function(p, i) {
+      const vib = parseFloat(p.vibration);
+      const color = vib >= 600 ? "#ef4444" : vib >= 300 ? "#f97316" : "#22c55e";
+      const label = vib >= 600 ? "H" : vib >= 300 ? "M" : "L";
+
+      const marker = new google.maps.Marker({
+        position: { lat: p.lat, lng: p.lng },
+        map: map,
+        title: p.device_id,
+        label: {
+          text: label,
+          color: "#fff",
+          fontSize: "11px",
+          fontWeight: "bold",
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 12,
+          fillColor: color,
+          fillOpacity: 0.9,
+          strokeColor: "#fff",
+          strokeWeight: 1.5,
+        },
+        zIndex: Math.round(vib),
+      });
+
+      const infoContent = `
+        <div id="iw-${i}" style="background:#111827;color:#f0f6ff;border-radius:10px;padding:14px 16px;
+                    min-width:240px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.6;">
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;
+                      background:linear-gradient(90deg,#3b82f6,#06b6d4);
+                      -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🚧 Pothole Detected
+          </div>
+          <div><span style="color:#8b9ab5;">Device:</span> <b>${p.device_id}</b></div>
+          <div style="margin-top:4px; margin-bottom:4px; padding:6px; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="color:#8b9ab5; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">Exact Location</div>
+            <div id="addr-${i}" style="color:var(--accent-cyan); font-weight:600; font-size:12px;">Looking up address...</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div>
+          </div>
+          <div><span style="color:#8b9ab5;">Vibration:</span>
+            <b style="color:${color};">${p.vibration}</b>
+          </div>
+          <div><span style="color:#8b9ab5;">Time:</span> ${p.timestamp}</div>
+          <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05);">
+            <a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" 
+               style="color:var(--accent-blue); text-decoration:none; font-weight:700; font-size:12px; display:flex; align-items:center; gap:4px;">
+               Open in Google Maps ↗
+            </a>
+          </div>
+        </div>
+      `;
+
+      const iw = new google.maps.InfoWindow({ content: infoContent });
+      marker.addListener("click", function() {
+        infoWindows.forEach(w => w.close());
+        iw.open(map, marker);
+        
+        // Reverse geocoding on click
+        const latlng = { lat: p.lat, lng: p.lng };
+        geocoder.geocode({ location: latlng }, (results, status) => {
+          const addrEl = document.getElementById(`addr-${i}`);
+          if (status === "OK") {
+            if (results[0]) {
+              addrEl.innerText = results[0].formatted_address;
+            } else {
+              addrEl.innerText = "Address not found";
+            }
+          } else {
+            addrEl.innerText = "Geocoder failed: " + status;
+          }
+        });
+      });
+
+      markers.push(marker);
+      infoWindows.push(iw);
+    });
+  }
+
+  // ── Fly to marker when table row is clicked ───────────────────
+  function flyToMarker(index) {
+    if (!markers[index]) return;
+    map.panTo(markers[index].getPosition());
+    map.setZoom(15);
+    infoWindows.forEach(w => w.close());
+    infoWindows[index].open(map, markers[index]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Removed slider/filter logic since threshold is hidden ──
+
+  // ── Table sort ────────────────────────────────────────────────
+  function sortTable(col) {
+    const table = document.getElementById('pothole-table');
+    const tbody = table.querySelector('tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+    const asc   = table.dataset.sortCol == col && table.dataset.sortDir == 'asc';
+    rows.sort(function(a, b) {
+      const aVal = a.cells[col].innerText.trim();
+      const bVal = b.cells[col].innerText.trim();
+      const aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+      if (!isNaN(aNum) && !isNaN(bNum)) return asc ? bNum - aNum : aNum - bNum;
+      return asc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    table.dataset.sortCol = col;
+    table.dataset.sortDir = asc ? 'desc' : 'asc';
+  }
+</script>
+
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"
+  async defer>
+</script>
+
+</body>
+</html>
