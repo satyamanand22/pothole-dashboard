@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PotholeTrack — Cloud Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* (CSS remains the same as dashboard.html) */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-base:       #0a0d14;
+      --bg-card:       #111827;
+      --bg-card-hover: #1a2235;
+      --border:        rgba(99, 179, 237, 0.12);
+      --accent-blue:   #3b82f6;
+      --accent-cyan:   #06b6d4;
+      --accent-orange: #f97316;
+      --accent-red:    #ef4444;
+      --accent-green:  #22c55e;
+      --text-primary:  #f0f6ff;
+      --text-muted:    #8b9ab5;
+      --glow-blue:     0 0 24px rgba(59, 130, 246, 0.35);
+      --radius:        14px;
+      --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-base); color: var(--text-primary); padding: 0; margin: 0; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 64px; background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-weight: 800; background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; transition: var(--transition); }
+    .stat-value { font-size: 2.2rem; font-weight: 800; color: var(--accent-blue); }
+    #map { width: 100%; height: 480px; border-radius: var(--radius); border: 1px solid var(--border); }
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 2rem; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .setup-banner { background: var(--accent-orange); color: #000; padding: 1rem; text-align: center; font-weight: 700; margin-bottom: 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">PotholeTrack Cloud</div>
+  <div style="color:var(--accent-green)">● 24/7 ONLINE</div>
+</nav>
+
+<main>
+  <div id="setup-view" style="display:none;">
+    <div class="stat-card">
+      <h2 style="margin-bottom:1rem;">Cloud Configuration</h2>
+      <p style="color:var(--text-muted); margin-bottom:1.5rem;">Please enter your API secrets to link this dashboard to your Google Data.</p>
+      <input type="text" id="script-url" placeholder="Google Apps Script Web App URL" style="width:100%; padding:12px; margin-bottom:1rem; border-radius:8px; border:1px solid #333; background:#000; color:#fff;">
+      <input type="text" id="maps-key" placeholder="Google Maps JavaScript API Key" style="width:100%; padding:12px; margin-bottom:1rem; border-radius:8px; border:1px solid #333; background:#000; color:#fff;">
+      <button onclick="saveConfig()" style="background:var(--accent-blue); color:#fff; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:700;">Launch Dashboard</button>
+    </div>
+  </div>
+
+  <div id="dashboard-view">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div style="font-size:0.8rem; color:var(--text-muted);">TOTAL DETECTIONS</div>
+        <div class="stat-value" id="total-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:0.8rem; color:var(--text-muted);">MAX VIBRATION</div>
+        <div class="stat-value" id="max-vib" style="color:var(--accent-red)">0</div>
+      </div>
+    </div>
+    
+    <div id="map"></div>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Vibration</th>
+            <th>Time</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  let config = JSON.parse(localStorage.getItem('pothole_config') || '{}');
+
+  function saveConfig() {
+    const url = document.getElementById('script-url').value;
+    const key = document.getElementById('maps-key').value;
+    if(!url || !key) return alert("Both keys required!");
+    localStorage.setItem('pothole_config', JSON.stringify({ scriptUrl: url, mapsKey: key }));
+    location.reload();
+  }
+
+  if(!config.scriptUrl || !config.mapsKey) {
+    document.getElementById('setup-view').style.display = 'block';
+    document.getElementById('dashboard-view').style.display = 'none';
+  } else {
+    // Load Maps
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${config.mapsKey}&callback=initMap`;
+    script.async = true;
+    document.head.appendChild(script);
+    fetchData();
+  }
+
+  async function fetchData() {
+    try {
+      const r = await fetch(config.scriptUrl);
+      const data = await r.json();
+      renderData(data);
+    } catch(e) { console.error(e); }
+  }
+
+  function renderData(data) {
+    document.getElementById('total-count').innerText = data.length;
+    let maxVib = 0;
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+    
+    data.forEach(p => {
+      if(p.vibration > maxVib) maxVib = p.vibration;
+      const row = `<tr>
+        <td>${p.device_id}</td>
+        <td>${p.vibration}</td>
+        <td>${p.timestamp}</td>
+        <td><a href="https://maps.google.com/?q=${p.latitude},${p.longitude}" target="_blank" style="color:var(--accent-cyan)">View</a></td>
+      </tr>`;
+      tbody.innerHTML += row;
+    });
+    document.getElementById('max-vib').innerText = maxVib;
+  }
+
+  function initMap() {
+    const map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 20.5937, lng: 78.9629 },
+      zoom: 5,
+      styles: [{elementType:'geometry',stylers:[{color:'#1a2235'}]}]
+    });
+    // Marker logic here (omitted for brevity in this simple cloud version)
+  }
+</script>
+</body>
+</html>
