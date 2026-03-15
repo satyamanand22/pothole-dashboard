@@ -6,3 +6,7 @@ __pycache__/
 *.log
 staticfiles/
 *.zip
+app.py
+google_apps_script.js
+render.yaml
+build.sh
