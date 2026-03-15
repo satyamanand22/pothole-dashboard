@@ -2,8 +2,8 @@ services:
   - type: web
     name: pothole-dashboard
     env: python
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn pothole_system.wsgi:application"
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "gunicorn pothole_system.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
