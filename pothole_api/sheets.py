@@ -103,14 +103,17 @@ def append_pothole_row(data: dict) -> None:
             logger.error("Google Sheets failed, falling back to local: %s", e)
 
     # Fallback/Default: Local SQLite
-    init_local_db()
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('''
-            INSERT INTO pothole_records (device_id, latitude, longitude, speed, vibration, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (data['device_id'], data['latitude'], data['longitude'], 
-              data['vehicle_speed'], data['vibration_value'], data['timestamp']))
-    logger.info("Stored in local DB: %s", data['device_id'])
+    try:
+        init_local_db()
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute('''
+                INSERT INTO pothole_records (device_id, latitude, longitude, speed, vibration, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (data['device_id'], data['latitude'], data['longitude'], 
+                  data.get('vehicle_speed', 0), data.get('vibration_value', 0), data['timestamp']))
+        logger.info("Stored in local DB: %s", data['device_id'])
+    except Exception as e:
+        logger.error("Local SQLite write failed: %s", e)
 
 
 def get_all_potholes() -> list[dict]:
