@@ -111,16 +111,20 @@ class DashboardView(APIView):
     """
 
     def get(self, request):
-        potholes = sheets_service.get_all_potholes()
+        try:
+            potholes = sheets_service.get_all_potholes()
+        except Exception as e:
+            logger.error("Dashboard failed to fetch potholes: %s", e)
+            potholes = []
 
         # Compute summary stats
         total = len(potholes)
         avg_speed = (
-            round(sum(float(p['speed']) for p in potholes) / total, 1)
+            round(sum(float(p.get('speed', 0)) for p in potholes) / total, 1)
             if total else 0
         )
         max_vibration = (
-            max(float(p['vibration']) for p in potholes)
+            max(float(p.get('vibration', 0)) for p in potholes)
             if total else 0
         )
         vibration_threshold = settings.VIBRATION_THRESHOLD
@@ -134,3 +138,45 @@ class DashboardView(APIView):
             'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         }
         return render(request, 'pothole_api/dashboard.html', context)
+
+
+class DiagnosticView(APIView):
+    """
+    GET /api/debug/
+    A special view to check if the server is configured correctly.
+    """
+    def get(self, request):
+        import os
+        from . import sheets
+        
+        creds_path = settings.GOOGLE_CREDENTIALS_FILE
+        creds_exists = os.path.exists(creds_path)
+        sheet_id = settings.GOOGLE_SHEETS_SPREADSHEET_ID
+        
+        status_info = {
+            "server_status": "online",
+            "google_sheets": {
+                "id_set": bool(sheet_id),
+                "id_value_hidden": f"{sheet_id[:5]}..." if sheet_id else "NONE",
+                "credentials_file_found": creds_exists,
+                "credentials_path": creds_path,
+            },
+            "database": {
+                "sqlite_path": sheets.DB_PATH,
+                "sqlite_exists": os.path.exists(sheets.DB_PATH),
+            },
+            "settings": {
+                "debug_mode": settings.DEBUG,
+                "allowed_hosts": settings.ALLOWED_HOSTS,
+                "vibration_threshold": settings.VIBRATION_THRESHOLD,
+            }
+        }
+        
+        # Try a test write/read to local DB
+        try:
+            sheets.init_local_db()
+            status_info["database"]["test_connection"] = "SUCCESS"
+        except Exception as e:
+            status_info["database"]["test_connection"] = f"FAILED: {str(e)}"
+
+        return Response(status_info)
