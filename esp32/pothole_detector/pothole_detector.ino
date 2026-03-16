@@ -39,8 +39,8 @@ const char* WIFI_SSID       = "Redmi Note 7 Pro";
 const char* WIFI_PASSWORD   = "1234567800";
 
 // Your PC's local IP + port (run: ipconfig on your PC to get it)
-// Example: "http://192.168.1.105:8000/api/pothole-data/"
-const char* SERVER_URL      = "https://brussels-grad-oriented-computed.trycloudflare.com/api/pothole-data/";
+// Example: "https://your-username.pythonanywhere.com/api/pothole-data/"
+const char* SERVER_URL      = "https://satyamanand.pythonanywhere.com/api/pothole-data/";
 
 // Unique name for this device
 const char* DEVICE_ID       = "ESP32-001";
@@ -149,20 +149,27 @@ bool sendPotholeData(float lat, float lng, float speed,
   Serial.println("[HTTP] Sending: " + payload);
 
   HTTPClient http;
-  http.begin(SERVER_URL);
-  http.addHeader("Content-Type", "application/json");
-  http.setTimeout(8000);  // 8 second timeout
+  WiFiClientSecure client;
+  client.setInsecure(); // This allows connecting to PythonAnywhere HTTPS without a certificate
+  
+  if (http.begin(client, SERVER_URL)) {
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(8000);  // 8 second timeout
 
-  int responseCode = http.POST(payload);
+    int responseCode = http.POST(payload);
 
-  if (responseCode > 0) {
-    String response = http.getString();
-    Serial.printf("[HTTP] %d → %s\n", responseCode, response.c_str());
-    http.end();
-    return (responseCode == 200);
+    if (responseCode > 0) {
+      String response = http.getString();
+      Serial.printf("[HTTP] %d → %s\n", responseCode, response.c_str());
+      http.end();
+      return (responseCode == 200 || responseCode == 201);
+    } else {
+      Serial.printf("[HTTP] Error: %s\n", http.errorToString(responseCode).c_str());
+      http.end();
+      return false;
+    }
   } else {
-    Serial.printf("[HTTP] Error: %s\n", http.errorToString(responseCode).c_str());
-    http.end();
+    Serial.println("[HTTP] Unable to connect to server");
     return false;
   }
 }
