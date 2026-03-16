@@ -175,6 +175,9 @@ class DiagnosticView(APIView):
         # Try a test write/read to local DB
         try:
             sheets.init_local_db()
+            with sqlite3.connect(sheets.DB_PATH) as conn:
+                count = conn.execute("SELECT COUNT(*) FROM pothole_records").fetchone()[0]
+            status_info["database"]["record_count"] = count
             status_info["database"]["test_connection"] = "SUCCESS"
         except Exception as e:
             status_info["database"]["test_connection"] = f"FAILED: {str(e)}"
